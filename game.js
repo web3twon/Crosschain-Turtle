@@ -208,17 +208,32 @@ class TurtleGame {
         
         allSounds.forEach((soundName) => {
             const audio = new Audio();
-            audio.preload = 'none'; // Don't preload, load when needed
-            audio.oncanplaythrough = () => {
+            audio.preload = 'metadata'; // Load metadata to make it ready
+            
+            // Use multiple events for better browser compatibility
+            let soundSetup = false;
+            const onSoundReady = () => {
+                if (soundSetup) return; // Prevent duplicate setup
+                soundSetup = true;
+                
                 this.sounds[soundName] = audio;
                 console.log(`Background loaded: ${soundName}`);
                 this.setupBackgroundAudio(soundName);
                 this.setSoundVolume(soundName);
             };
-            audio.onerror = () => {
-                console.log(`Background failed: ${soundName} (ignored)`);
+            
+            audio.oncanplaythrough = onSoundReady;
+            audio.onloadeddata = onSoundReady; // Fallback event
+            audio.oncanplay = onSoundReady; // Another fallback
+            
+            audio.onerror = (error) => {
+                console.log(`Background failed: ${soundName}`, error);
             };
+            
             audio.src = `assets/sounds/${soundName}.mp3`;
+            
+            // Force load start
+            audio.load();
         });
     }
     
