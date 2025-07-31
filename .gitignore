@@ -29,6 +29,7 @@
 # Development text files
 *.txt
 react*.txt
+CLAUDE.md
 
 # HTML files that aren't the main game
 output*.html
