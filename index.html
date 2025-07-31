@@ -190,10 +190,16 @@
             border-radius: 8px;
             cursor: pointer;
             margin-top: 20px;
-            transition: background-color 0.3s;
+            transition: background-color 0.3s, transform 0.1s, opacity 0.1s;
             min-height: 44px;
             min-width: 120px;
             touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            position: relative;
+            z-index: 1000;
         }
 
         .btn:hover {
@@ -387,14 +393,14 @@
                     </ul>
                 </div>
             </div>
-            <button class="btn" onclick="startGame()">Start Game</button>
+            <button class="btn" id="startGameBtn">Start Game</button>
         </div>
 
         <div id="gameOverScreen">
             <h2>Game Over!</h2>
             <p id="finalScore">Final Score: 0</p>
             <p id="finalLevel">Level Reached: 1</p>
-            <button class="btn" onclick="startGame()">Play Again</button>
+            <button class="btn" id="playAgainBtn">Play Again</button>
         </div>
     </div>
 

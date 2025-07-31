@@ -1,7 +1,19 @@
 class TurtleGame {
     constructor() {
+        console.log('TurtleGame constructor starting...');
         this.canvas = document.getElementById('gameCanvas');
+        if (!this.canvas) {
+            console.error('Canvas element not found!');
+            throw new Error('Canvas element gameCanvas not found');
+        }
+        console.log('Canvas found:', this.canvas);
+        
         this.ctx = this.canvas.getContext('2d');
+        if (!this.ctx) {
+            console.error('Could not get 2D context!');
+            throw new Error('Could not get 2D rendering context');
+        }
+        console.log('2D context obtained');
         
         this.GAME_WIDTH = 800;
         this.GAME_HEIGHT = 600;
@@ -85,8 +97,10 @@ class TurtleGame {
         this.minSwipeDistance = 30;
         this.isTouching = false;
         
+        console.log('Starting game initialization...');
         this.initializeGame();
         this.updateCanvasScale();
+        console.log('TurtleGame constructor completed');
     }
 
     updateCanvasScale() {
@@ -127,14 +141,43 @@ class TurtleGame {
     }
 
     async initializeGame() {
-        await Promise.all([
-            this.loadSprites(),
-            this.loadSounds()
-        ]);
-        this.setupEventListeners();
-        this.spritesLoaded = true;
-        this.soundsLoaded = true;
-        console.log('Game initialized successfully');
+        console.log('initializeGame() called');
+        try {
+            console.log('Loading sprites and sounds...');
+            
+            // Set up emergency timeout for entire initialization
+            const emergencyTimeout = new Promise((resolve) => {
+                setTimeout(() => {
+                    console.error('EMERGENCY: Game initialization taking too long, forcing minimal startup');
+                    this.spritesLoaded = true;
+                    this.soundsLoaded = true;
+                    resolve();
+                }, 30000); // 30 second emergency timeout
+            });
+            
+            const resourceLoading = Promise.all([
+                this.loadSprites(),
+                this.loadSounds()
+            ]);
+            
+            await Promise.race([
+                resourceLoading,
+                emergencyTimeout
+            ]);
+            
+            console.log('Sprites and sounds loaded (or emergency timeout), setting up event listeners...');
+            this.setupEventListeners();
+            this.spritesLoaded = true;
+            this.soundsLoaded = true;
+            console.log('Game initialized successfully');
+        } catch (error) {
+            console.error('Error during game initialization, forcing minimal startup:', error);
+            // Force minimal startup
+            this.spritesLoaded = true;
+            this.soundsLoaded = true;
+            this.setupEventListeners();
+            console.log('Game initialized with minimal features due to error');
+        }
         
         this.render();
     }
@@ -233,6 +276,104 @@ class TurtleGame {
             this.stopActivityTimer();
             this.resetTouchVariables();
         }, { passive: false });
+
+        // iOS-compatible button event handlers
+        this.setupButtonEventHandlers();
+    }
+
+    setupButtonEventHandlers() {
+        const startGameBtn = document.getElementById('startGameBtn');
+        const playAgainBtn = document.getElementById('playAgainBtn');
+
+        // Prevent rapid double-taps
+        let buttonClickInProgress = false;
+
+        // Function to handle start game with proper iOS compatibility
+        const handleStartGame = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Prevent rapid double-taps
+            if (buttonClickInProgress) return;
+            buttonClickInProgress = true;
+            
+            // Try to start background music on button interaction
+            this.tryStartBackgroundMusic();
+            
+            if (this.spritesLoaded) {
+                this.startGame();
+            } else {
+                console.log('Game not ready yet');
+            }
+            
+            // Reset button click flag after short delay
+            setTimeout(() => {
+                buttonClickInProgress = false;
+            }, 300);
+        };
+
+        // Add multiple event types for maximum iOS compatibility
+        if (startGameBtn) {
+            // Standard click event
+            startGameBtn.addEventListener('click', handleStartGame, { passive: false });
+            
+            // Touch events for iOS
+            startGameBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                // Add visual feedback
+                startGameBtn.style.transform = 'scale(0.98)';
+                startGameBtn.style.opacity = '0.8';
+            }, { passive: false });
+            
+            startGameBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Remove visual feedback
+                startGameBtn.style.transform = '';
+                startGameBtn.style.opacity = '';
+                
+                // Handle the start game action
+                handleStartGame(e);
+            }, { passive: false });
+            
+            startGameBtn.addEventListener('touchcancel', (e) => {
+                // Remove visual feedback if touch is cancelled
+                startGameBtn.style.transform = '';
+                startGameBtn.style.opacity = '';
+            }, { passive: false });
+        }
+
+        if (playAgainBtn) {
+            // Standard click event
+            playAgainBtn.addEventListener('click', handleStartGame, { passive: false });
+            
+            // Touch events for iOS
+            playAgainBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                // Add visual feedback
+                playAgainBtn.style.transform = 'scale(0.98)';
+                playAgainBtn.style.opacity = '0.8';
+            }, { passive: false });
+            
+            playAgainBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Remove visual feedback
+                playAgainBtn.style.transform = '';
+                playAgainBtn.style.opacity = '';
+                
+                // Handle the start game action
+                handleStartGame(e);
+            }, { passive: false });
+            
+            playAgainBtn.addEventListener('touchcancel', (e) => {
+                // Remove visual feedback if touch is cancelled
+                playAgainBtn.style.transform = '';
+                playAgainBtn.style.opacity = '';
+            }, { passive: false });
+        }
     }
 
     handleSwipe() {
@@ -553,10 +694,12 @@ class TurtleGame {
     }
 
     async loadSprites() {
+        console.log('loadSprites() called');
         const spriteList = [
             'turtle', 'car', 'carleft', 'carright', 'bus', 'busleft', 'busright', 'truck', 'truckleft', 'truckright', 'log', 'lilypad', 
             'water1', 'road2', 'grass', 'nest'
         ];
+        console.log('Sprite list:', spriteList);
         
         this.ctx.fillStyle = '#1a1a1a';
         this.ctx.fillRect(0, 0, this.GAME_WIDTH, this.GAME_HEIGHT);
@@ -567,8 +710,17 @@ class TurtleGame {
         
         const loadPromises = spriteList.map((spriteName, index) => {
             return new Promise((resolve, reject) => {
+                console.log(`Attempting to load sprite: ${spriteName}`);
                 const img = new Image();
+                
+                // Add timeout for iOS compatibility
+                const timeout = setTimeout(() => {
+                    console.error(`Timeout loading sprite: ${spriteName}`);
+                    resolve(); // Don't reject, just resolve to continue
+                }, 10000); // 10 second timeout
+                
                 img.onload = () => {
+                    clearTimeout(timeout);
                     this.sprites[spriteName] = img;
                     this.loadingProgress = ((index + 1) / spriteList.length) * 100;
                     
@@ -577,20 +729,41 @@ class TurtleGame {
                     this.ctx.fillStyle = '#4ade80';
                     this.ctx.fillText(`Loading: ${Math.round(this.loadingProgress)}%`, this.GAME_WIDTH / 2, this.GAME_HEIGHT / 2 + 40);
                     
-                    console.log(`Loaded: ${spriteName}`);
+                    console.log(`Successfully loaded: ${spriteName}`);
                     resolve();
                 };
-                img.onerror = () => {
-                    console.error(`Failed to load sprite: ${spriteName}`);
-                    resolve();
+                
+                img.onerror = (error) => {
+                    clearTimeout(timeout);
+                    console.error(`Failed to load sprite: ${spriteName}`, error);
+                    console.error(`Image src was: assets/images/${spriteName}.png`);
+                    resolve(); // Don't reject, just resolve to continue
                 };
-                img.src = `assets/images/${spriteName}.png`;
+                
+                // iOS Safari sometimes needs crossOrigin set
+                img.crossOrigin = 'anonymous';
+                const imagePath = `assets/images/${spriteName}.png`;
+                console.log(`Setting image src: ${imagePath}`);
+                img.src = imagePath;
             });
         });
         
         try {
-            await Promise.all(loadPromises);
-            console.log('All sprites loaded successfully');
+            // Set a maximum wait time for all images
+            const imageLoadingTimeout = new Promise((resolve) => {
+                setTimeout(() => {
+                    console.warn('Image loading timeout reached, continuing with available sprites');
+                    resolve();
+                }, 15000); // 15 second total timeout
+            });
+            
+            await Promise.race([
+                Promise.all(loadPromises),
+                imageLoadingTimeout
+            ]);
+            
+            console.log('Sprite loading completed (or timed out)');
+            console.log('Loaded sprites:', Object.keys(this.sprites));
             
             this.ctx.fillStyle = '#1a1a1a';
             this.ctx.fillRect(0, 0, this.GAME_WIDTH, this.GAME_HEIGHT);
@@ -598,14 +771,16 @@ class TurtleGame {
             this.ctx.fillText('Ready to Play!', this.GAME_WIDTH / 2, this.GAME_HEIGHT / 2);
             
         } catch (error) {
-            console.error('Failed to load some sprites');
+            console.error('Failed to load some sprites:', error);
         }
     }
 
     async loadSounds() {
+        console.log('loadSounds() called');
         const soundList = [
             'traffic', 'river', 'horn1', 'splash', 'nest', 'levelfinish', 'background'
         ];
+        console.log('Sound list:', soundList);
         
         this.ctx.fillStyle = '#1a1a1a';
         this.ctx.fillRect(0, 0, this.GAME_WIDTH, this.GAME_HEIGHT);
@@ -616,24 +791,51 @@ class TurtleGame {
         
         const loadPromises = soundList.map((soundName, index) => {
             return new Promise((resolve, reject) => {
+                console.log(`Attempting to load sound: ${soundName}`);
                 const audio = new Audio();
+                
+                // Add timeout for iOS compatibility
+                const timeout = setTimeout(() => {
+                    console.error(`Timeout loading sound: ${soundName}`);
+                    resolve(); // Don't reject, just resolve to continue
+                }, 8000); // 8 second timeout for sounds
+                
                 audio.preload = 'auto';
                 audio.oncanplaythrough = () => {
+                    clearTimeout(timeout);
                     this.sounds[soundName] = audio;
-                    console.log(`Loaded sound: ${soundName}`);
+                    console.log(`Successfully loaded sound: ${soundName}`);
                     resolve();
                 };
-                audio.onerror = () => {
-                    console.error(`Failed to load sound: ${soundName}`);
-                    resolve();
+                audio.onerror = (error) => {
+                    clearTimeout(timeout);
+                    console.error(`Failed to load sound: ${soundName}`, error);
+                    console.error(`Audio src was: assets/sounds/${soundName}.mp3`);
+                    resolve(); // Don't reject, just resolve to continue
                 };
-                audio.src = `assets/sounds/${soundName}.mp3`;
+                
+                const audioPath = `assets/sounds/${soundName}.mp3`;
+                console.log(`Setting audio src: ${audioPath}`);
+                audio.src = audioPath;
             });
         });
         
         try {
-            await Promise.all(loadPromises);
-            console.log('All sounds loaded successfully');
+            // Set a maximum wait time for all sounds
+            const soundLoadingTimeout = new Promise((resolve) => {
+                setTimeout(() => {
+                    console.warn('Sound loading timeout reached, continuing with available sounds');
+                    resolve();
+                }, 12000); // 12 second total timeout
+            });
+            
+            await Promise.race([
+                Promise.all(loadPromises),
+                soundLoadingTimeout
+            ]);
+            
+            console.log('Sound loading completed (or timed out)');
+            console.log('Loaded sounds:', Object.keys(this.sounds));
             
             // Set up background sounds
             if (this.sounds.traffic) {
@@ -2156,16 +2358,114 @@ class TurtleGame {
 
 let game;
 
-function startGame() {
-    if (game && game.spritesLoaded) {
-        // Try to start background music on button click
-        game.tryStartBackgroundMusic();
-        game.startGame();
-    } else {
-        console.log('Game not ready yet');
+window.addEventListener('load', () => {
+    console.log('Window load event fired');
+    try {
+        game = new TurtleGame();
+        console.log('TurtleGame constructor called');
+    } catch (error) {
+        console.error('Error creating TurtleGame:', error);
+        // Show error to user
+        document.body.innerHTML += '<div style="position: fixed; top: 10px; left: 10px; background: red; color: white; padding: 10px; z-index: 9999;">Game Init Error: ' + error.message + '</div>';
+    }
+});
+
+// Also set up button handlers immediately when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    // Set up button handlers even before game is fully initialized
+    setupGlobalButtonHandlers();
+});
+
+function setupGlobalButtonHandlers() {
+    const startGameBtn = document.getElementById('startGameBtn');
+    const playAgainBtn = document.getElementById('playAgainBtn');
+
+    // Prevent rapid double-taps
+    let buttonClickInProgress = false;
+
+    // Function to handle start game with proper iOS compatibility
+    const handleStartGame = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Prevent rapid double-taps
+        if (buttonClickInProgress) return;
+        buttonClickInProgress = true;
+        
+        if (game && game.spritesLoaded) {
+            // Try to start background music on button interaction
+            game.tryStartBackgroundMusic();
+            game.startGame();
+        } else {
+            console.log('Game not ready yet');
+        }
+        
+        // Reset button click flag after short delay
+        setTimeout(() => {
+            buttonClickInProgress = false;
+        }, 300);
+    };
+
+    // Add multiple event types for maximum iOS compatibility
+    if (startGameBtn) {
+        // Standard click event
+        startGameBtn.addEventListener('click', handleStartGame, { passive: false });
+        
+        // Touch events for iOS
+        startGameBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            // Add visual feedback
+            startGameBtn.style.transform = 'scale(0.98)';
+            startGameBtn.style.opacity = '0.8';
+        }, { passive: false });
+        
+        startGameBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Remove visual feedback
+            startGameBtn.style.transform = '';
+            startGameBtn.style.opacity = '';
+            
+            // Handle the start game action
+            handleStartGame(e);
+        }, { passive: false });
+        
+        startGameBtn.addEventListener('touchcancel', (e) => {
+            // Remove visual feedback if touch is cancelled
+            startGameBtn.style.transform = '';
+            startGameBtn.style.opacity = '';
+        }, { passive: false });
+    }
+
+    if (playAgainBtn) {
+        // Standard click event
+        playAgainBtn.addEventListener('click', handleStartGame, { passive: false });
+        
+        // Touch events for iOS
+        playAgainBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            // Add visual feedback
+            playAgainBtn.style.transform = 'scale(0.98)';
+            playAgainBtn.style.opacity = '0.8';
+        }, { passive: false });
+        
+        playAgainBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Remove visual feedback
+            playAgainBtn.style.transform = '';
+            playAgainBtn.style.opacity = '';
+            
+            // Handle the start game action
+            handleStartGame(e);
+        }, { passive: false });
+        
+        playAgainBtn.addEventListener('touchcancel', (e) => {
+            // Remove visual feedback if touch is cancelled
+            playAgainBtn.style.transform = '';
+            playAgainBtn.style.opacity = '';
+        }, { passive: false });
     }
 }
-
-window.addEventListener('load', () => {
-    game = new TurtleGame();
-});
