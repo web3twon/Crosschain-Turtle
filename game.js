@@ -97,10 +97,10 @@ class TurtleGame {
         this.minSwipeDistance = 30;
         this.isTouching = false;
         
-        console.log('Starting game initialization...');
+        console.log('Starting INSTANT game initialization...');
         this.initializeGame();
         this.updateCanvasScale();
-        console.log('TurtleGame constructor completed');
+        console.log('TurtleGame constructor completed INSTANTLY - ready to play!');
     }
 
     updateCanvasScale() {
@@ -141,45 +141,146 @@ class TurtleGame {
     }
 
     async initializeGame() {
-        console.log('initializeGame() called');
-        try {
-            console.log('Loading sprites and sounds...');
-            
-            // Set up emergency timeout for entire initialization
-            const emergencyTimeout = new Promise((resolve) => {
-                setTimeout(() => {
-                    console.error('EMERGENCY: Game initialization taking too long, forcing minimal startup');
-                    this.spritesLoaded = true;
-                    this.soundsLoaded = true;
-                    resolve();
-                }, 30000); // 30 second emergency timeout
-            });
-            
-            const resourceLoading = Promise.all([
-                this.loadSprites(),
-                this.loadSounds()
-            ]);
-            
-            await Promise.race([
-                resourceLoading,
-                emergencyTimeout
-            ]);
-            
-            console.log('Sprites and sounds loaded (or emergency timeout), setting up event listeners...');
-            this.setupEventListeners();
-            this.spritesLoaded = true;
-            this.soundsLoaded = true;
-            console.log('Game initialized successfully');
-        } catch (error) {
-            console.error('Error during game initialization, forcing minimal startup:', error);
-            // Force minimal startup
-            this.spritesLoaded = true;
-            this.soundsLoaded = true;
-            this.setupEventListeners();
-            console.log('Game initialized with minimal features due to error');
-        }
+        console.log('initializeGame() called - INSTANT STARTUP MODE');
+        
+        // INSTANT STARTUP: Don't wait for anything!
+        this.setupEventListeners();
+        this.spritesLoaded = true;  // Lie to the system - game is ready
+        this.soundsLoaded = true;   // Everything will load in background
+        
+        console.log('Game initialized INSTANTLY - ready to play!');
+        
+        // Show ready message immediately
+        this.ctx.fillStyle = '#1a1a1a';
+        this.ctx.fillRect(0, 0, this.GAME_WIDTH, this.GAME_HEIGHT);
+        this.ctx.fillStyle = '#4ade80';
+        this.ctx.font = '24px Inter';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('Ready to Play!', this.GAME_WIDTH / 2, this.GAME_HEIGHT / 2);
+        
+        // Start loading everything in background (non-blocking)
+        this.loadAllResourcesInBackground();
         
         this.render();
+    }
+    
+    // Load all resources in background - completely non-blocking
+    loadAllResourcesInBackground() {
+        console.log('Starting background resource loading...');
+        
+        // Load sprites quietly in background
+        setTimeout(() => {
+            this.loadSpritesQuietly();
+        }, 100); // Small delay to let UI render first
+        
+        // Load sounds quietly in background  
+        setTimeout(() => {
+            this.loadSoundsQuietly();
+        }, 500); // Slightly later to prioritize sprites
+    }
+    
+    // Load sprites silently without blocking UI
+    async loadSpritesQuietly() {
+        console.log('Loading sprites silently in background...');
+        const spriteList = [
+            'turtle', 'car', 'carleft', 'carright', 'bus', 'busleft', 'busright', 
+            'truck', 'truckleft', 'truckright', 'log', 'lilypad', 
+            'water1', 'road2', 'grass', 'nest'
+        ];
+        
+        spriteList.forEach((spriteName) => {
+            const img = new Image();
+            img.onload = () => {
+                this.sprites[spriteName] = img;
+                console.log(`Background loaded: ${spriteName}`);
+            };
+            img.onerror = () => {
+                console.log(`Background failed: ${spriteName} (ignored)`);
+            };
+            img.src = `assets/images/${spriteName}.png`;
+        });
+    }
+    
+    // Load sounds silently without blocking UI
+    async loadSoundsQuietly() {
+        console.log('Loading sounds silently in background...');
+        const allSounds = ['horn1', 'splash', 'nest', 'levelfinish', 'traffic', 'river', 'background'];
+        
+        allSounds.forEach((soundName) => {
+            const audio = new Audio();
+            audio.preload = 'none'; // Don't preload, load when needed
+            audio.oncanplaythrough = () => {
+                this.sounds[soundName] = audio;
+                console.log(`Background loaded: ${soundName}`);
+                this.setupBackgroundAudio(soundName);
+                this.setSoundVolume(soundName);
+            };
+            audio.onerror = () => {
+                console.log(`Background failed: ${soundName} (ignored)`);
+            };
+            audio.src = `assets/sounds/${soundName}.mp3`;
+        });
+    }
+    
+    // Set sound volumes when they load
+    setSoundVolume(soundName) {
+        if (this.sounds[soundName]) {
+            switch(soundName) {
+                case 'horn1': this.sounds[soundName].volume = 0.486; break;
+                case 'splash': this.sounds[soundName].volume = 0.405; break;
+                case 'nest': this.sounds[soundName].volume = 0.405; break;
+                case 'levelfinish': this.sounds[soundName].volume = 0.567; break;
+            }
+        }
+    }
+    
+    // Load large background sounds asynchronously after game starts
+    loadBackgroundSoundsAsync(backgroundSounds) {
+        console.log('Loading background sounds asynchronously...');
+        
+        backgroundSounds.forEach((soundName) => {
+            console.log(`Loading background sound: ${soundName}`);
+            const audio = new Audio();
+            
+            // No timeout for background sounds, let them load when they can
+            audio.preload = 'none'; // Don't preload, load on demand
+            audio.oncanplaythrough = () => {
+                this.sounds[soundName] = audio;
+                console.log(`Background sound loaded: ${soundName}`);
+                this.setupBackgroundAudio(soundName);
+            };
+            audio.onerror = (error) => {
+                console.error(`Failed to load background sound: ${soundName}`, error);
+            };
+            
+            const audioPath = `assets/sounds/${soundName}.mp3`;
+            audio.src = audioPath;
+        });
+    }
+    
+    // Set up background audio when it becomes available
+    setupBackgroundAudio(soundName) {
+        if (soundName === 'traffic' && this.sounds.traffic) {
+            this.backgroundSounds.traffic = this.sounds.traffic;
+            this.backgroundSounds.traffic.loop = true;
+            this.backgroundSounds.traffic.volume = 0.324;
+        }
+        
+        if (soundName === 'river' && this.sounds.river) {
+            this.backgroundSounds.river = this.sounds.river;
+            this.backgroundSounds.river.loop = true;
+            this.backgroundSounds.river.volume = 0;
+        }
+        
+        if (soundName === 'background' && this.sounds.background) {
+            this.backgroundMusic.primary = this.sounds.background.cloneNode();
+            this.backgroundMusic.secondary = this.sounds.background.cloneNode();
+            this.backgroundMusic.primary.volume = 0;
+            this.backgroundMusic.secondary.volume = 0;
+            this.backgroundMusic.primary.loop = false;
+            this.backgroundMusic.secondary.loop = false;
+            console.log('Background music ready for playback');
+        }
     }
 
     setupEventListeners() {
@@ -777,96 +878,73 @@ class TurtleGame {
 
     async loadSounds() {
         console.log('loadSounds() called');
-        const soundList = [
-            'traffic', 'river', 'horn1', 'splash', 'nest', 'levelfinish', 'background'
-        ];
-        console.log('Sound list:', soundList);
+        
+        // Split sounds into essential (small) and background (large) for iOS optimization
+        const essentialSounds = ['horn1', 'splash', 'nest', 'levelfinish']; // Small files ~26-47KB
+        const backgroundSounds = ['traffic', 'river', 'background']; // Large files 378KB-16MB
+        
+        console.log('Essential sounds:', essentialSounds);
+        console.log('Background sounds (will load after):', backgroundSounds);
         
         this.ctx.fillStyle = '#1a1a1a';
         this.ctx.fillRect(0, 0, this.GAME_WIDTH, this.GAME_HEIGHT);
         this.ctx.fillStyle = '#4ade80';
         this.ctx.font = '24px Inter';
         this.ctx.textAlign = 'center';
-        this.ctx.fillText('Loading Sounds...', this.GAME_WIDTH / 2, this.GAME_HEIGHT / 2 + 50);
+        this.ctx.fillText('Loading Essential Sounds...', this.GAME_WIDTH / 2, this.GAME_HEIGHT / 2 + 50);
         
-        const loadPromises = soundList.map((soundName, index) => {
+        // Load essential sounds first (fast loading)
+        const loadEssentialPromises = essentialSounds.map((soundName, index) => {
             return new Promise((resolve, reject) => {
-                console.log(`Attempting to load sound: ${soundName}`);
+                console.log(`Attempting to load essential sound: ${soundName}`);
                 const audio = new Audio();
                 
-                // Add timeout for iOS compatibility
+                // Shorter timeout for essential sounds
                 const timeout = setTimeout(() => {
-                    console.error(`Timeout loading sound: ${soundName}`);
-                    resolve(); // Don't reject, just resolve to continue
-                }, 8000); // 8 second timeout for sounds
+                    console.error(`Timeout loading essential sound: ${soundName}`);
+                    resolve();
+                }, 5000); // 5 second timeout for essential sounds
                 
-                audio.preload = 'auto';
+                audio.preload = 'metadata'; // Load metadata only, faster than 'auto'
                 audio.oncanplaythrough = () => {
                     clearTimeout(timeout);
                     this.sounds[soundName] = audio;
-                    console.log(`Successfully loaded sound: ${soundName}`);
+                    console.log(`Successfully loaded essential sound: ${soundName}`);
                     resolve();
                 };
                 audio.onerror = (error) => {
                     clearTimeout(timeout);
-                    console.error(`Failed to load sound: ${soundName}`, error);
-                    console.error(`Audio src was: assets/sounds/${soundName}.mp3`);
-                    resolve(); // Don't reject, just resolve to continue
+                    console.error(`Failed to load essential sound: ${soundName}`, error);
+                    resolve();
                 };
                 
                 const audioPath = `assets/sounds/${soundName}.mp3`;
-                console.log(`Setting audio src: ${audioPath}`);
+                console.log(`Setting essential audio src: ${audioPath}`);
                 audio.src = audioPath;
             });
         });
         
         try {
-            // Set a maximum wait time for all sounds
-            const soundLoadingTimeout = new Promise((resolve) => {
+            // Load essential sounds first (fast)
+            const essentialTimeout = new Promise((resolve) => {
                 setTimeout(() => {
-                    console.warn('Sound loading timeout reached, continuing with available sounds');
+                    console.warn('Essential sound loading timeout, continuing');
                     resolve();
-                }, 12000); // 12 second total timeout
+                }, 6000); // 6 second timeout for essential sounds
             });
             
             await Promise.race([
-                Promise.all(loadPromises),
-                soundLoadingTimeout
+                Promise.all(loadEssentialPromises),
+                essentialTimeout
             ]);
             
-            console.log('Sound loading completed (or timed out)');
-            console.log('Loaded sounds:', Object.keys(this.sounds));
+            console.log('Essential sounds loaded, game can start now');
+            console.log('Essential sounds loaded:', Object.keys(this.sounds));
             
-            // Set up background sounds
-            if (this.sounds.traffic) {
-                this.backgroundSounds.traffic = this.sounds.traffic;
-                this.backgroundSounds.traffic.loop = true;
-                this.backgroundSounds.traffic.volume = 0.324; // Reduced by another 10%
-            }
+            // Load background sounds asynchronously (don't wait)
+            this.loadBackgroundSoundsAsync(backgroundSounds);
             
-            if (this.sounds.river) {
-                this.backgroundSounds.river = this.sounds.river;
-                this.backgroundSounds.river.loop = true;
-                this.backgroundSounds.river.volume = 0; // Start at 0 for fade-in
-            }
-            
-            // Set up background music with crossfading
-            if (this.sounds.background) {
-                // Create two instances for seamless looping
-                this.backgroundMusic.primary = this.sounds.background.cloneNode();
-                this.backgroundMusic.secondary = this.sounds.background.cloneNode();
-                
-                this.backgroundMusic.primary.volume = 0;
-                this.backgroundMusic.secondary.volume = 0;
-                this.backgroundMusic.primary.loop = false; // We'll handle looping manually for crossfade
-                this.backgroundMusic.secondary.loop = false;
-                
-                console.log('Background music loaded and ready');
-                // Don't start automatically due to browser autoplay policies
-                // Will start when user clicks "Start Game"
-            }
-            
-            // Set volumes for sound effects (reduced by another 10%)
+            // Set volumes for essential sound effects (reduced by another 10%)
             if (this.sounds.horn1) this.sounds.horn1.volume = 0.486; // Reduced by another 10% from 0.54
             if (this.sounds.splash) this.sounds.splash.volume = 0.405; // Reduced by another 10% from 0.45
             if (this.sounds.nest) this.sounds.nest.volume = 0.405; // Reduced by another 10% from 0.45
@@ -1732,7 +1810,7 @@ class TurtleGame {
     }
 
     render() {
-        if (!this.spritesLoaded) return;
+        // Always render - sprites load in background
         
         // Save current transform and clear canvas
         this.ctx.save();
